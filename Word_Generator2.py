@@ -367,9 +367,9 @@ class Network(object):
                 self.words_list(existing_words=False)
                 self.words_list(existing_words=True)
 
-    def update_network_and_weights(self, X, t, input_curr, target):
+    def update_network_and_weights(self, t, input_curr, target):
         '''Update network variable by applying a LMS algo'''
-        [vout, vr, W_out, _] = X
+        [vout, vr, W_out, _] = self.X
         ## update equations of reservoir and output units
 #        vr_new = (1 - self.params['dt']) * vr + self.params['dt'] * self.sigm(dot(self.W_ri, atleast_2d(input_curr[t,:]).reshape([self.dim_input, 1])) + dot(self.W_rr, vr) + dot(self.W_fb, vout) + self.offset) # new act. reservoir
         vr_new = self.f_update_res(t, input_curr, vr, vout) # new act. reservoir
@@ -389,11 +389,8 @@ class Network(object):
 #        print "atleast_2d(target[t,:]).reshape([self.dim_out, 1])", atleast_2d(target[t,:]).reshape([self.dim_out, 1]).T
 
         if np.max(err) > 10**9 or np.max(err)=='nan':
-
-            raise Exception, "LMS error is too big (more than 10**42): "+str(err)+". The algorithm is diverging because of a too high learning rate. You should decrease the learning rate !!!"
-
+            raise(Exception, "LMS error is too big (more than 10**42): "+str(err)+". The algorithm is diverging because of a too high learning rate. You should decrease the learning rate !!!")
         return [vout_new, vr_new, W_out_new, err]
-
 
 if __name__ == '__main__':
     nw = Network()
