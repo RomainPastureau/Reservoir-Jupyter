@@ -32,7 +32,6 @@ class Network(object):
 
         #Network mode
         self.mode = 'prediction'
-        self.compute_type = "offline"
 
         #Random seed
         self.seed = None #42
@@ -103,7 +102,6 @@ class Network(object):
         self.data_b = np.zeros((len(self.input_text), len(self.input_units)))
         for i, item in enumerate(self.data) :
             self.data_b[i][item] = 1
-        #np.save("inputdata.np", self.data_b)
         print("done.\n")
 
     def initialization(self) :
@@ -123,12 +121,14 @@ class Network(object):
         print('done.')
         self.W *= self.spectral_radius / rhoW
 
-    def train_network(self) :
-        print('Training the network...', end=" ")
+    def train_input(self) :
+        print('Training the input...', end=" ")
         percent = 0.1
         for t in range(self.trainLen):
             percent = self.progression(percent, t, self.trainLen)
-            self.u = self.data_b[t%len(self.data)]
+            self.u = np.zeros((1, len(self.input_units)))
+            self.u[self.data[t%len(self.data)]] = 1
+            #self.u = self.data_b[t%len(self.data)]
             self.x = (1-self.a)*self.x + self.a*np.tanh( np.dot(self.Win, np.concatenate((np.array([1]),self.u)).reshape(len(self.input_units)+1,1) ) + np.dot( self.W, self.x ) )
             if t >= self.initLen :
                 self.X[:,t-self.initLen] = np.concatenate((np.array([1]),self.u,self.x[:,0])).reshape(len(self.input_units)+self.resSize+1,1)[:,0]      
@@ -147,7 +147,8 @@ class Network(object):
     def test(self) :
         print('Testing the network... (', self.mode, ' mode)', sep="", end=" ")
         self.Y = np.zeros((self.outSize,self.testLen))
-        self.u = self.data_b[self.trainLen%len(self.data)]
+        self.u = np.zeros((1, len(self.input_units)))
+        self.u[self.data[(self.trainLen)%len(self.data)]] = 1
         percent = 0.1
         for t in range(self.testLen):
             percent = self.progression(percent, t, self.trainLen)
@@ -292,13 +293,7 @@ class Network(object):
         while selectmode not in [1, 2] :
             selectmode = int(input("\nMode?\n 1. Prediction\n 2. Generative\n > "))
         if selectmode == 1 : self.mode = 'prediction'
-        else : self.mode = 'generative'
-
-        selecttype = 0
-        while selecttype not in [1, 2] :
-            selecttype = int(input("\nComputing type?\n 1. Offline\n 2. Online\n > "))
-        if selecttype == 1 : self.compute_type = "offline"
-        else : self.compute_type = "online"
+        else : self.mode = 'generative'            
 
         #CHARACTERS SETUP
         keep_upper, keep_punctuation, keep_numbers = "", "", ""
@@ -360,46 +355,45 @@ class Network(object):
         if self.type == 2 :
             self.words()
         self.convert_input()
-        self.binary_data()
+        #self.binary_data()
         for i in range(self.launches) :
             self.current_launch = i
             self.initialization()
             self.compute_spectral_radius()
-            if self.compute_type == "offline" :
-                self.train_network()
-                self.train_output()
-                self.test() 
-                self.compute_error()
-            if self.compute_type == "online" :
-                self.train_online()
+            self.train_input()
+            self.train_output()
+            self.test() 
+            self.compute_error()
             self.convert_output()
             self.record_output()
             if self.type == 1 :
                 self.words_list(existing_words=False)
                 self.words_list(existing_words=True)
 
-    def train_online(self) :
+    def update_network_and_weights(self, t, input_curr, target):
         '''Update network variable by applying a LMS algo'''
-        for t in range(self.initLen+self.trainLen+self.testLen) :
-            self.u = self.data_b[t%len(self.data)]
-            
-            ## update equations of reservoir and output units
-            self.x = (1-self.a)*self.x + self.a*np.tanh( np.dot(self.Win, np.concatenate((np.array([1]),self.u)).reshape(len(self.input_units)+1,1) ) + np.dot( self.W, self.x ) )
-            if t >= self.initLen :
-                self.X[:,t-self.initLen] = np.concatenate((np.array([1]),self.u,self.x[:,0])).reshape(len(self.input_units)+self.resSize+1,1)[:,0]
-            self.X_T = self.X.T
-            self.Wout = np.dot(np.dot(self.Ytarget,self.X_T), linalg.inv(np.dot(self.X,self.X_T) + \
-                    self.reg*np.eye(1+self.inSize+self.resSize) ) )
-            self.Y = np.zeros((self.outSize,self.testLen))
-            self.y = np.dot(self.Wout, np.concatenate((np.array([1]),self.u,self.x[:,0])).reshape(len(self.input_units)+self.resSize+1,1)[:,0] )
-            self.Y[:,t] = self.y
-            
-            err = self.Ytarget[t] - np.atleast_2d(Y[:,t]).reshape([len(self.input_units), 1])
-            
-            self.Wout = self.Wout - self.learning_rate*dot(err.reshape([len(self.input_units), 1]),self.x.reshape([1, self.resSize]))
-            
-            if np.max(err) > 10**9 or np.max(err)=='nan':
-                raise(Exception, "LMS error is too big (more than 10**42): "+str(err)+". The algorithm is diverging because of a too high learning rate. You should decrease the learning rate !!!")
+        [vout, vr, W_out, _] = self.X
+        ## update equations of reservoir and output units
+#        vr_new = (1 - self.params['dt']) * vr + self.params['dt'] * self.sigm(dot(self.W_ri, atleast_2d(input_curr[t,:]).reshape([self.dim_input, 1])) + dot(self.W_rr, vr) + dot(self.W_fb, vout) + self.offset) # new act. reservoir
+        vr_new = self.f_update_res(t, input_curr, vr, vout) # new act. reservoir
+#        vout_new = self.f_out(dot(W_out, vr_new)) # new output activity
+        vout_new = self.f_update_out(W_out, vr_new) # new output activity
+
+        ### compute error and update (reservoir to output) weights
+        ##- compute theoretical output activity with the error function
+        vout_new_theo = self.f_err_out(dot(W_out, vr_new)) # predicted output activity (retina)
+        ##- compute current error
+        err = vout_new_theo - atleast_2d(target[t,:]).reshape([self.dim_out, 1])
+        ##- update reservoir to output weights
+        W_out_new = W_out - self.params['learning_rate']*dot(err.reshape([self.dim_out, 1]),vr_new.reshape([1, self.dim_res])) # new output weight matrix
+
+#        print "max LMS err=", np.max(err)
+#        print "vout_new_theo=", vout_new_theo.T
+#        print "atleast_2d(target[t,:]).reshape([self.dim_out, 1])", atleast_2d(target[t,:]).reshape([self.dim_out, 1]).T
+
+        if np.max(err) > 10**9 or np.max(err)=='nan':
+            raise(Exception, "LMS error is too big (more than 10**42): "+str(err)+". The algorithm is diverging because of a too high learning rate. You should decrease the learning rate !!!")
+        return [vout_new, vr_new, W_out_new, err]
 
 if __name__ == '__main__':
     nw = Network()
