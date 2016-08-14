@@ -202,7 +202,7 @@ class Network(object):
         record_file.write(self.output_text)
         record_file.close()
 
-    def words_list(self, existing_words=True, language="EN", nb_words=20) :
+    def words_list(self, existing_words=True, language="EN") :
 
         print("_"*20)
         print("\n  TRIAL NUMBER", self.current_launch+1)
@@ -213,20 +213,20 @@ class Network(object):
             elif language == "FR" : words_dict = open("words_list_FR.txt", "r").read()
             words_dict = words_dict.split()
 
-        alphabet = list("abcdefghijklmnopqrstuvwxyzABCDEFGHIJKLMNOPQRSTUVWXYZ0123456789 ")
+        alphabet = list("abcdefghijklmnopqrstuvwxyzABCDEFGHIJKLMNOPQRSTUVWXYZ ")
         self.allwords = "".join([i for i in self.output_text if i in alphabet])
         self.allwords = self.allwords.lower().split()
         words_occurences = Counter(self.allwords)
         
         if existing_words == False :
             print("\nMost common words (real or not) in the generated text", end="\n\n")
-            longest_size = len(sorted(list(words_occurences.most_common(nb_words)), key=len)[-1])
+            longest_size = len(sorted(list(words_occurences.most_common(self.nb_words)), key=len)[-1])
             print("| Word", end=" "*(max(longest_size,4)-3))
             print("| Occurences ")
             print("-"*(longest_size+17))
-            words_occurences = words_occurences.most_common(nb_words)
+            words_occurences = words_occurences.most_common(self.nb_words)
             
-            for i in range(nb_words) :
+            for i in range(self.nb_words) :
                 w = str(words_occurences[i][0])
                 n = str(words_occurences[i][1])
                 print("| " + w + " "*(max(longest_size,3)-len(w)+2) + "| " + n)
@@ -240,7 +240,7 @@ class Network(object):
             real_words_occurences = []
             words_occurences = words_occurences.most_common()
             
-            while i < nb_words :
+            while i < self.nb_words :
                 if words_occurences[j][0] in words_in_dictionary :
                     real_words_occurences.append(words_occurences[j])
                     i += 1
@@ -248,7 +248,7 @@ class Network(object):
                 if j == len(words_occurences) :
                     break
 
-            longest_size = len(sorted(real_words_occurences, key=len)[-1])
+            longest_size = len(sorted(words_in_dictionary, key=len)[-1])
             print("| Word", end=" "*(max(longest_size,4)-3))
             print("| Occurences ")
             print("-"*(longest_size+17))
@@ -258,7 +258,7 @@ class Network(object):
                 n = str(real_words_occurences[k][1])
                 print("| " + w + " "*(max(longest_size,3)-len(w)+2) + "| " + n)
             print("-"*(longest_size+17))
-            print("\nLongest valid word :", sorted(real_words_occurences, key=len)[-1])
+            print("\nLongest valid word :", sorted(words_in_dictionary, key=len)[-1])
 
     def progression(self, percent, i, total) :
         if i == 0 :
@@ -334,11 +334,11 @@ class Network(object):
             print("\nReservoir Size?", end=" ")
             self.resSize = int(input())
 
-        while not 0 < self.trainLen < len(self.input_text) :
+        while not 0 < self.trainLen <= len(self.input_text) :
             print("Training length? (0-", str(len(self.input_text)), ")", sep="", end=" ")
             self.trainLen = int(input())
         
-        while not 0 < self.testLen < len(self.input_text)-self.trainLen :
+        while not 0 < self.testLen <= len(self.input_text)-self.trainLen :
             print("Testing length? (0-", str(len(self.input_text)-self.trainLen), ")", sep="", end=" ")
             self.testLen = int(input())
         
@@ -352,6 +352,10 @@ class Network(object):
         self.launches = 0
         while self.launches <= 0:
             self.launches = int(input("\nHow many network launches? "))
+
+        self.nb_words = 0
+        while self.nb_words <= 0:
+            self.nb_words = int(input("\nHow long do you want the words occurences list to be? "))
 
     def compute_network(self) :
         self.setup()
