@@ -173,11 +173,19 @@ class Network(object):
         print('MSE = ' + str( mse ))
 
     def probabilities(self, i) :
+        """ Provide a vector of probabilities for the character/word output.
+        filter0: replacing x<0 by 0, x within [0,+infinity[
+        filter01: replacing x<0 by 0, replacing x>1 by 1, x within [0,1]        
+        add_min: scaling all the outputs such as the min value equals 0, x within [0,+infinity[
+        max: (does nothing to the values, because we will take the maximum value anyway, so we do not need to compute probabilities)
+        """
         if self.probamode == "filter0" :
-            proba_weights = abs((self.Y.T[i] > 0)*self.Y.T[i])
+#            proba_weights = abs((self.Y.T[i] > 0)*self.Y.T[i])
+            proba_weights = (self.Y.T[i] > 0)*self.Y.T[i] # should work without abs
         elif self.probamode == "filter01" :
-            proba_weights = abs((self.Y.T[i] > 0)*self.Y.T[i])
-            proba_weights = proba_weights-((proba_weights > 1)*proba_weights) + (proba_weights > 1)*1
+#            proba_weights = abs((self.Y.T[i] > 0)*self.Y.T[i])
+#            proba_weights = proba_weights-((proba_weights > 1)*proba_weights) + (proba_weights > 1)*1
+            proba_weights = np.all([(0<=self.Y.T[i]), (self.Y.T[i]<=1)], axis=0)*self.Y.T[i] + (self.Y.T[i]>1)*1.
         elif self.probamode == "add_min" :
             proba_weights = (self.Y.T[i]) - np.min(self.Y.T[i])
         elif self.probamode == "max" :
