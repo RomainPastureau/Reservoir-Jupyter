@@ -1,5 +1,5 @@
-# out folder (containing the results)
-out/*
+# files in out folder (containing the results)
+out/
 
 # Windows image file caches
 Thumbs.db
