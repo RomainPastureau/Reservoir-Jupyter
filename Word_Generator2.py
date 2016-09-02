@@ -115,6 +115,8 @@ class Network(object):
     def initialization(self) :
         print("_"*20,"\n\n  LAUNCH NUMBER ", self.current_launch+1,"\n","_"*20,sep="")
         print("\nInitializing the network matrices...", end=" ")
+        if self.trainLen-self.initLen <= 0:
+            raise Exception("The training length (i.e. number of time steps) is lower than the initialization length, should be bigger.")
         self.set_seed()
         self.Win = (np.random.rand(self.resSize,1+self.inSize)-0.5) * self.input_scaling
         self.W = np.random.rand(self.resSize,self.resSize)-0.5 
@@ -283,10 +285,12 @@ class Network(object):
             print("Progress :", end= " ")
             percent = 0.1
         elif (i/total) > percent :
-            print(round(percent*100), end="")
-            print("%", end=" ")
+#            print(round(percent*100), end="")
+#            print("%", end=" ")
+            print(round(percent*100),"%")
             percent += 0.1
-        if total-i == 1 :
+#        if total-i == 1 :
+        elif total-i == 1 :
             print("100%")
 
         return(percent)
@@ -375,6 +379,8 @@ class Network(object):
             self.nb_words = int(input("\nHow long do you want the words occurences list to be? "))
 
     def setup(self) :
+        """ Ask the user if (s)he wants to load the predifined parameters (here below),
+            or if (s)he wants to go through a series of questions to parameterize it on the fly (in setup_user())."""
 
         self.predefined_params = 0
         while self.predefined_params not in [1, 2] :
@@ -386,10 +392,10 @@ class Network(object):
             self.file = open("text/Shakespeare.txt", "r").read()
             self.mode = 'prediction'
             self.compute_type = "online"
-            self.filter_characters(True, True, False)
-            self.resSize = 300
-            self.trainLen = 200000
-            self.testLen = 10000
+            self.filter_characters(False, True, False) # (keep_upper, keep_punctuation, keep_numbers)
+            self.resSize = 10**3
+            self.trainLen = 10**5 #200000
+            self.testLen = 10**3
             self.probamode = "max"
             self.launches = 1
             self.nb_words = 50
